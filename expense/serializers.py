@@ -1,0 +1,43 @@
+# v1.1.0
+from rest_framework import serializers
+
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord
+
+
+class ExpenseItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseItem
+        fields = ["id", "item_name", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class ExpenseRecordSerializer(serializers.ModelSerializer):
+    item_name = serializers.CharField(source="item.item_name", read_only=True)
+
+    class Meta:
+        model = ExpenseRecord
+        fields = [
+            "id", "item", "item_name", "amount",
+            "expense_date", "remark", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0.")
+        return value
+
+
+class IncomeRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IncomeRecord
+        fields = [
+            "id", "income_source", "amount",
+            "income_date", "remark", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0.")
+        return value
