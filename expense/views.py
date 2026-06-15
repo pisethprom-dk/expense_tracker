@@ -1,4 +1,4 @@
-# v1.2.0
+# v1.6.0
 from datetime import date
 
 from rest_framework import viewsets, status
@@ -6,11 +6,13 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask
 from .serializers import (
     ExpenseItemSerializer,
     ExpenseRecordSerializer,
     IncomeRecordSerializer,
+    SavingRecordSerializer,
+    WeeklyTaskSerializer,
 )
 from . import services
 
@@ -64,6 +66,59 @@ class IncomeRecordViewSet(viewsets.ModelViewSet):
             try:
                 year, mon = services.parse_month(month)
                 qs = qs.filter(income_date__year=year, income_date__month=mon)
+            except ValueError:
+                pass
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class SavingRecordViewSet(viewsets.ModelViewSet):
+    """CRUD for savings; filter by ?date=YYYY-MM-DD, ?month=YYYY-MM or ?year=YYYY."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = SavingRecordSerializer
+
+    def get_queryset(self):
+        qs = SavingRecord.objects.filter(user=self.request.user)
+        saving_date = self.request.query_params.get("date")
+        month = self.request.query_params.get("month")
+        year = self.request.query_params.get("year")
+        if saving_date:
+            qs = qs.filter(saving_date=saving_date)
+        if month:
+            try:
+                y, mon = services.parse_month(month)
+                qs = qs.filter(saving_date__year=y, saving_date__month=mon)
+            except ValueError:
+                pass
+        if year:
+            try:
+                qs = qs.filter(saving_date__year=int(year))
+            except ValueError:
+                pass
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class WeeklyTaskViewSet(viewsets.ModelViewSet):
+    """CRUD for tasks; filter by ?date=YYYY-MM-DD or ?week=YYYY-MM-DD (any day in week)."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = WeeklyTaskSerializer
+
+    def get_queryset(self):
+        qs = WeeklyTask.objects.filter(user=self.request.user)
+        task_date = self.request.query_params.get("date")
+        week = self.request.query_params.get("week")
+        if task_date:
+            qs = qs.filter(task_date=task_date)
+        if week:
+            try:
+                anchor = services.parse_date(week)
+                monday, sunday = services.week_bounds(anchor)
+                qs = qs.filter(task_date__gte=monday, task_date__lte=sunday)
             except ValueError:
                 pass
         return qs
@@ -131,3 +186,77 @@ def range_summary(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response(services.get_range_summary(date_from, date_to, user=request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def balance_overview(request):
+    """GET /api/summary/balance/?year=YYYY (default: current year)
+
+    Per-month income, spent and remaining balance for the year.
+    """
+    from datetime import date as _date
+    year_str = request.query_params.get("year")
+    try:
+        year = int(year_str) if year_str else _date.today().year
+    except ValueError:
+        return Response(
+            {"detail": "Invalid year. Use YYYY."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(services.get_balance_overview(year, user=request.user))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def set_balance(request):
+    """POST /api/summary/balance/set/  Body: {"year": 2026, "month": 6, "amount": "500.00"}"""
+    from decimal import Decimal, InvalidOperation
+    try:
+        year = int(request.data.get("year"))
+        month = int(request.data.get("month"))
+        amount = Decimal(str(request.data.get("amount")))
+    except (TypeError, ValueError, InvalidOperation):
+        return Response(
+            {"detail": "year, month and amount are required and must be valid."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if month < 1 or month > 12:
+        return Response(
+            {"detail": "month must be 1-12."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    services.set_monthly_balance(year, month, amount, user=request.user)
+    return Response(services.get_balance_overview(year, user=request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def saving_summary(request):
+    """GET /api/savings/summary/?year=YYYY — per-month + whole-year saving total."""
+    from datetime import date as _date
+    year_str = request.query_params.get("year")
+    try:
+        year = int(year_str) if year_str else _date.today().year
+    except ValueError:
+        return Response(
+            {"detail": "Invalid year. Use YYYY."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(services.get_saving_summary(year, user=request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def week_summary(request):
+    """GET /api/tasks/summary/?week=YYYY-MM-DD (any day in the week; default: today)"""
+    from datetime import date as _date
+    week_str = request.query_params.get("week")
+    try:
+        anchor = services.parse_date(week_str) if week_str else _date.today()
+    except ValueError:
+        return Response(
+            {"detail": "Invalid date. Use YYYY-MM-DD."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(services.get_week_summary(anchor, user=request.user))

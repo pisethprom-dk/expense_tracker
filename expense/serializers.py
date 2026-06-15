@@ -1,7 +1,7 @@
-# v1.1.0
+# v1.6.0
 from rest_framework import serializers
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask
 
 
 class ExpenseItemSerializer(serializers.ModelSerializer):
@@ -41,3 +41,22 @@ class IncomeRecordSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Amount must be greater than 0.")
         return value
+
+
+class SavingRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavingRecord
+        fields = ["id", "amount", "saving_date", "note", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than 0.")
+        return value
+
+
+class WeeklyTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WeeklyTask
+        fields = ["id", "title", "task_date", "is_done", "note", "created_at"]
+        read_only_fields = ["id", "created_at"]

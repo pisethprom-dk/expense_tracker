@@ -1,4 +1,4 @@
-# v1.1.0
+# v1.6.0
 from django.conf import settings
 from django.db import models
 
@@ -57,3 +57,62 @@ class IncomeRecord(models.Model):
 
     def __str__(self):
         return f"{self.income_date} - {self.income_source} - {self.amount}"
+
+
+class MonthlyBalance(models.Model):
+    """User-entered balance for a given month. remaining = amount - spent."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="monthly_balances", null=True, blank=True,
+    )
+    year = models.IntegerField()
+    month = models.IntegerField()  # 1-12
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "monthly_balance"
+        ordering = ["-year", "-month"]
+        unique_together = ("user", "year", "month")
+
+    def __str__(self):
+        return f"{self.year}-{self.month:02d} : {self.amount}"
+
+
+class SavingRecord(models.Model):
+    """A money-saving entry (money set aside)."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="saving_records", null=True, blank=True,
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    saving_date = models.DateField(db_index=True)
+    note = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "saving_record"
+        ordering = ["-saving_date", "-created_at"]
+
+    def __str__(self):
+        return f"{self.saving_date} - {self.amount}"
+
+
+class WeeklyTask(models.Model):
+    """A task planned for a specific day. Week = Mon-Sun containing task_date."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="weekly_tasks", null=True, blank=True,
+    )
+    title = models.CharField(max_length=255)
+    task_date = models.DateField(db_index=True)
+    is_done = models.BooleanField(default=False)
+    note = models.CharField(max_length=255, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "weekly_task"
+        ordering = ["task_date", "created_at"]
+
+    def __str__(self):
+        return f"{self.task_date} - {'[x]' if self.is_done else '[ ]'} {self.title}"

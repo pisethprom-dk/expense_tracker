@@ -1,7 +1,7 @@
-# v1.1.0
+# v1.6.0
 from django.contrib import admin
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask
 
 
 @admin.register(ExpenseItem)
@@ -23,3 +23,23 @@ class IncomeRecordAdmin(admin.ModelAdmin):
     list_display = ["id", "income_date", "income_source", "amount", "remark"]
     list_filter = ["income_date"]
     date_hierarchy = "income_date"
+
+
+@admin.register(MonthlyBalance)
+class MonthlyBalanceAdmin(admin.ModelAdmin):
+    list_display = ["id", "user", "year", "month", "amount", "updated_at"]
+    list_filter = ["year", "month"]
+
+
+@admin.register(SavingRecord)
+class SavingRecordAdmin(admin.ModelAdmin):
+    list_display = ["id", "saving_date", "amount", "note", "user"]
+    list_filter = ["saving_date"]
+    date_hierarchy = "saving_date"
+
+
+@admin.register(WeeklyTask)
+class WeeklyTaskAdmin(admin.ModelAdmin):
+    list_display = ["id", "task_date", "title", "is_done", "user"]
+    list_filter = ["task_date", "is_done"]
+    date_hierarchy = "task_date"
