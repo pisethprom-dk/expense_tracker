@@ -1,4 +1,4 @@
-# v1.6.0
+# v1.8.0
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -49,10 +49,9 @@ def get_daily_summary(target_date, user=None) -> dict:
 
 
 def get_monthly_summary(year, month, user=None) -> dict:
-    """Expense grouped by item (biggest first) + income total + balance.
+    """Expense grouped by item (biggest first) + income, saving, and balance.
 
-    balance = income_total - month_total (expense). Each expense effectively
-    withdraws from the month's income.
+    balance = income_total - (month_total expense + saving_total).
     """
     exp_qs = ExpenseRecord.objects.filter(
         expense_date__year=year, expense_date__month=month
@@ -60,13 +59,18 @@ def get_monthly_summary(year, month, user=None) -> dict:
     inc_qs = IncomeRecord.objects.filter(
         income_date__year=year, income_date__month=month
     )
+    sav_qs = SavingRecord.objects.filter(
+        saving_date__year=year, saving_date__month=month
+    )
     if user is not None:
         exp_qs = exp_qs.filter(user=user)
         inc_qs = inc_qs.filter(user=user)
+        sav_qs = sav_qs.filter(user=user)
 
     month_total = exp_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     income_total = inc_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    balance = income_total - month_total
+    saving_total = sav_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    balance = income_total - (month_total + saving_total)
 
     breakdown = (
         exp_qs.values("item__id", "item__item_name")
@@ -103,6 +107,7 @@ def get_monthly_summary(year, month, user=None) -> dict:
         "month": "%04d-%02d" % (year, month),
         "month_total": money(month_total),
         "income_total": money(income_total),
+        "saving_total": money(saving_total),
         "balance": money(balance),
         "items": items,
         "incomes": incomes,
@@ -110,20 +115,28 @@ def get_monthly_summary(year, month, user=None) -> dict:
 
 
 def get_range_summary(date_from, date_to, user=None) -> dict:
-    """Expense grouped by item over a date range + income total + balance."""
+    """Expense grouped by item over a date range + income, saving, and balance.
+
+    balance = income_total - (range_total expense + saving_total).
+    """
     exp_qs = ExpenseRecord.objects.filter(
         expense_date__gte=date_from, expense_date__lte=date_to
     )
     inc_qs = IncomeRecord.objects.filter(
         income_date__gte=date_from, income_date__lte=date_to
     )
+    sav_qs = SavingRecord.objects.filter(
+        saving_date__gte=date_from, saving_date__lte=date_to
+    )
     if user is not None:
         exp_qs = exp_qs.filter(user=user)
         inc_qs = inc_qs.filter(user=user)
+        sav_qs = sav_qs.filter(user=user)
 
     range_total = exp_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     income_total = inc_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    balance = income_total - range_total
+    saving_total = sav_qs.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+    balance = income_total - (range_total + saving_total)
 
     breakdown = (
         exp_qs.values("item__id", "item__item_name")
@@ -146,6 +159,7 @@ def get_range_summary(date_from, date_to, user=None) -> dict:
         "date_to": date_to.isoformat(),
         "range_total": money(range_total),
         "income_total": money(income_total),
+        "saving_total": money(saving_total),
         "balance": money(balance),
         "items": items,
     }
@@ -248,6 +262,7 @@ def get_week_summary(any_date, user=None) -> dict:
     for i in range(7):
         d = monday + timedelta(days=i)
         day_tasks = [t for t in qs if t.task_date == d]
+        day_tasks.sort(key=lambda t: (t.order, t.created_at))
         d_done = sum(1 for t in day_tasks if t.is_done)
         total += len(day_tasks)
         done += d_done
@@ -262,6 +277,7 @@ def get_week_summary(any_date, user=None) -> dict:
                     "title": t.title,
                     "is_done": t.is_done,
                     "note": t.note,
+                    "order": t.order,
                 }
                 for t in day_tasks
             ],

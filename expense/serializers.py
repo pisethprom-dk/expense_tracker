@@ -1,4 +1,4 @@
-# v1.6.0
+# v1.8.0
 from rest_framework import serializers
 
 from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask
@@ -58,5 +58,5 @@ class SavingRecordSerializer(serializers.ModelSerializer):
 class WeeklyTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = WeeklyTask
-        fields = ["id", "title", "task_date", "is_done", "note", "created_at"]
+        fields = ["id", "title", "task_date", "is_done", "note", "order", "created_at"]
         read_only_fields = ["id", "created_at"]

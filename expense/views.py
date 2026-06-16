@@ -1,8 +1,8 @@
-# v1.6.0
+# v1.8.0
 from datetime import date
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -124,12 +124,34 @@ class WeeklyTaskViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        # place new task at the end of its day
+        task_date = serializer.validated_data.get("task_date")
+        last = (
+            WeeklyTask.objects.filter(user=self.request.user, task_date=task_date)
+            .order_by("-order")
+            .first()
+        )
+        next_order = (last.order + 1) if last else 0
+        serializer.save(user=self.request.user, order=next_order)
 
-
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def daily_summary(request):
+    @action(detail=False, methods=["post"])
+    def reorder(self, request):
+        """POST /api/tasks/reorder/  Body: {"ids": [id1, id2, ...]}
+        Sets order to match the given id sequence (same day)."""
+        ids = request.data.get("ids", [])
+        if not isinstance(ids, list):
+            return Response({"detail": "ids must be a list."}, status=400)
+        tasks = {
+            t.id: t for t in WeeklyTask.objects.filter(
+                user=request.user, id__in=ids
+            )
+        }
+        for index, tid in enumerate(ids):
+            t = tasks.get(tid)
+            if t:
+                t.order = index
+                t.save(update_fields=["order"])
+        return Response({"detail": "reordered", "count": len(ids)})
     """GET /api/expense/summary/daily/?date=YYYY-MM-DD (default: today)"""
     date_str = request.query_params.get("date")
     try:

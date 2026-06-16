@@ -1,4 +1,4 @@
-# v1.6.0
+# v1.8.0
 from django.conf import settings
 from django.db import models
 
@@ -108,11 +108,12 @@ class WeeklyTask(models.Model):
     task_date = models.DateField(db_index=True)
     is_done = models.BooleanField(default=False)
     note = models.CharField(max_length=255, blank=True, default="")
+    order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "weekly_task"
-        ordering = ["task_date", "created_at"]
+        ordering = ["task_date", "order", "created_at"]
 
     def __str__(self):
         return f"{self.task_date} - {'[x]' if self.is_done else '[ ]'} {self.title}"
