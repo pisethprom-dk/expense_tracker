@@ -1,4 +1,4 @@
-# v1.8.0
+# v1.8.1
 from datetime import date
 
 from rest_framework import viewsets, status
@@ -152,6 +152,11 @@ class WeeklyTaskViewSet(viewsets.ModelViewSet):
                 t.order = index
                 t.save(update_fields=["order"])
         return Response({"detail": "reordered", "count": len(ids)})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def daily_summary(request):
     """GET /api/expense/summary/daily/?date=YYYY-MM-DD (default: today)"""
     date_str = request.query_params.get("date")
     try:
