@@ -1,4 +1,4 @@
-# v1.8.0
+# v1.9.0
 from django.contrib import admin
 
 from .models import ExpenseItem, ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask

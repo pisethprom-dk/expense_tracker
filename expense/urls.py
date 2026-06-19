@@ -1,4 +1,4 @@
-# v1.8.0
+# v1.9.0
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 

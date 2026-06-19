@@ -1,4 +1,4 @@
-# v1.8.0
+# v1.9.0
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -258,24 +258,29 @@ def get_week_summary(any_date, user=None) -> dict:
              "Friday", "Saturday", "Sunday"]
     days = []
     total = 0
-    done = 0
+    success = 0
+    failed = 0
     for i in range(7):
         d = monday + timedelta(days=i)
         day_tasks = [t for t in qs if t.task_date == d]
         day_tasks.sort(key=lambda t: (t.order, t.created_at))
-        d_done = sum(1 for t in day_tasks if t.is_done)
+        d_success = sum(1 for t in day_tasks if t.status == WeeklyTask.STATUS_SUCCESS)
+        d_failed = sum(1 for t in day_tasks if t.status == WeeklyTask.STATUS_FAILED)
         total += len(day_tasks)
-        done += d_done
+        success += d_success
+        failed += d_failed
         days.append({
             "date": d.isoformat(),
             "weekday": names[i],
             "task_count": len(day_tasks),
-            "done_count": d_done,
+            "success_count": d_success,
+            "failed_count": d_failed,
             "tasks": [
                 {
                     "id": t.id,
                     "title": t.title,
                     "is_done": t.is_done,
+                    "status": t.status,
                     "note": t.note,
                     "order": t.order,
                 }
@@ -283,15 +288,18 @@ def get_week_summary(any_date, user=None) -> dict:
             ],
         })
 
-    percent = str((Decimal(done) / Decimal(total) * 100).quantize(TWO_DP)) \
+    pending = total - success - failed
+    # achievement = success out of all tasks
+    percent = str((Decimal(success) / Decimal(total) * 100).quantize(TWO_DP)) \
         if total else "0.00"
 
     return {
         "week_start": monday.isoformat(),
         "week_end": sunday.isoformat(),
         "total_tasks": total,
-        "done_tasks": done,
-        "pending_tasks": total - done,
+        "success_tasks": success,
+        "failed_tasks": failed,
+        "pending_tasks": pending,
         "achievement_percent": percent,
         "days": days,
     }

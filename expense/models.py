@@ -1,4 +1,4 @@
-# v1.8.0
+# v1.9.0
 from django.conf import settings
 from django.db import models
 
@@ -107,6 +107,17 @@ class WeeklyTask(models.Model):
     title = models.CharField(max_length=255)
     task_date = models.DateField(db_index=True)
     is_done = models.BooleanField(default=False)
+    STATUS_PENDING = "pending"
+    STATUS_SUCCESS = "success"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SUCCESS, "Success"),
+        (STATUS_FAILED, "Failed"),
+    ]
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
     note = models.CharField(max_length=255, blank=True, default="")
     order = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
