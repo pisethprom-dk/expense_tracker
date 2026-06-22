@@ -1,7 +1,7 @@
-# v1.9.0
+# v1.11.0
 from django.contrib import admin
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask, TaskTemplate
 
 
 @admin.register(ExpenseItem)
@@ -43,3 +43,9 @@ class WeeklyTaskAdmin(admin.ModelAdmin):
     list_display = ["id", "task_date", "title", "is_done", "user"]
     list_filter = ["task_date", "is_done"]
     date_hierarchy = "task_date"
+
+
+@admin.register(TaskTemplate)
+class TaskTemplateAdmin(admin.ModelAdmin):
+    list_display = ["id", "title", "order", "is_active", "user"]
+    list_filter = ["is_active"]

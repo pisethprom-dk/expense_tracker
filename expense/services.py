@@ -1,10 +1,10 @@
-# v1.9.0
+# v1.11.0
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Sum, Count
 
-from .models import ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask
+from .models import ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask, TaskTemplate
 
 TWO_DP = Decimal("0.01")
 
@@ -303,6 +303,35 @@ def get_week_summary(any_date, user=None) -> dict:
         "achievement_percent": percent,
         "days": days,
     }
+
+
+def apply_templates_to_dates(dates, user=None):
+    """Create a WeeklyTask for each active template on each given date.
+    Skips a (date, title) that already has a task, to avoid duplicates.
+    Returns the number of tasks created."""
+    templates = TaskTemplate.objects.filter(is_active=True)
+    if user is not None:
+        templates = templates.filter(user=user)
+    templates = list(templates.order_by("order", "created_at"))
+
+    created = 0
+    for d in dates:
+        existing = set(
+            WeeklyTask.objects.filter(user=user, task_date=d)
+            .values_list("title", flat=True)
+        )
+        for tpl in templates:
+            if tpl.title in existing:
+                continue
+            WeeklyTask.objects.create(
+                user=user,
+                title=tpl.title,
+                task_date=d,
+                note=tpl.note,
+                order=tpl.order,
+            )
+            created += 1
+    return created
 
 
 def parse_date(value):

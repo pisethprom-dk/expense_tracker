@@ -1,4 +1,4 @@
-# v1.9.0
+# v1.11.0
 from datetime import date
 
 from rest_framework import viewsets, status
@@ -6,13 +6,14 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask, TaskTemplate
 from .serializers import (
     ExpenseItemSerializer,
     ExpenseRecordSerializer,
     IncomeRecordSerializer,
     SavingRecordSerializer,
     WeeklyTaskSerializer,
+    TaskTemplateSerializer,
 )
 from . import services
 
@@ -35,6 +36,8 @@ class ExpenseRecordViewSet(viewsets.ModelViewSet):
         expense_date = self.request.query_params.get("date")
         month = self.request.query_params.get("month")  # YYYY-MM
         item_id = self.request.query_params.get("item")
+        date_from = self.request.query_params.get("from")
+        date_to = self.request.query_params.get("to")
         if expense_date:
             qs = qs.filter(expense_date=expense_date)
         if month:
@@ -43,6 +46,10 @@ class ExpenseRecordViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(expense_date__year=year, expense_date__month=mon)
             except ValueError:
                 pass
+        if date_from:
+            qs = qs.filter(expense_date__gte=date_from)
+        if date_to:
+            qs = qs.filter(expense_date__lte=date_to)
         if item_id:
             qs = qs.filter(item_id=item_id)
         return qs
@@ -152,6 +159,53 @@ class WeeklyTaskViewSet(viewsets.ModelViewSet):
                 t.order = index
                 t.save(update_fields=["order"])
         return Response({"detail": "reordered", "count": len(ids)})
+
+
+class TaskTemplateViewSet(viewsets.ModelViewSet):
+    """CRUD for reusable daily task templates."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = TaskTemplateSerializer
+
+    def get_queryset(self):
+        return TaskTemplate.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        last = (
+            TaskTemplate.objects.filter(user=self.request.user)
+            .order_by("-order")
+            .first()
+        )
+        next_order = (last.order + 1) if last else 0
+        serializer.save(user=self.request.user, order=next_order)
+
+    @action(detail=False, methods=["post"])
+    def apply(self, request):
+        """POST /api/task-templates/apply/
+        Body: {"week": "YYYY-MM-DD"} -> apply to all 7 days of that week,
+        or {"date": "YYYY-MM-DD"} -> apply to a single day.
+        """
+        week = request.data.get("week")
+        single = request.data.get("date")
+        try:
+            if week:
+                anchor = services.parse_date(week)
+                monday, sunday = services.week_bounds(anchor)
+                from datetime import timedelta
+                dates = [monday + timedelta(days=i) for i in range(7)]
+            elif single:
+                dates = [services.parse_date(single)]
+            else:
+                return Response(
+                    {"detail": "Provide 'week' or 'date' (YYYY-MM-DD)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        created = services.apply_templates_to_dates(dates, user=request.user)
+        return Response({"detail": "applied", "created": created})
 
 
 @api_view(["GET"])

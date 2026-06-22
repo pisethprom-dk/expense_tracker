@@ -1,4 +1,4 @@
-# v1.9.0
+# v1.11.0
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
@@ -11,6 +11,7 @@ router.register(r"records", views.ExpenseRecordViewSet, basename="expense-record
 router.register(r"incomes", views.IncomeRecordViewSet, basename="income-record")
 router.register(r"savings", views.SavingRecordViewSet, basename="saving-record")
 router.register(r"tasks", views.WeeklyTaskViewSet, basename="weekly-task")
+router.register(r"task-templates", views.TaskTemplateViewSet, basename="task-template")
 
 urlpatterns = [
     # specific summary routes FIRST
