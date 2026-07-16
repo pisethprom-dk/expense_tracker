@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask, TaskTemplate
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask, TaskTemplate, MonthlyTask
 from .serializers import (
     ExpenseItemSerializer,
     ExpenseRecordSerializer,
@@ -14,6 +14,7 @@ from .serializers import (
     SavingRecordSerializer,
     WeeklyTaskSerializer,
     TaskTemplateSerializer,
+    MonthlyTaskSerializer,
 )
 from . import services
 
@@ -341,3 +342,66 @@ def week_summary(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response(services.get_week_summary(anchor, user=request.user))
+
+
+class MonthlyTaskViewSet(viewsets.ModelViewSet):
+    """CRUD for monthly tasks; filter by ?year=YYYY (12 months) or ?year=YYYY&month=M."""
+    permission_classes = [IsAuthenticated]
+    serializer_class = MonthlyTaskSerializer
+
+    def get_queryset(self):
+        qs = MonthlyTask.objects.filter(user=self.request.user)
+        year = self.request.query_params.get("year")
+        month = self.request.query_params.get("month")
+        if year:
+            qs = qs.filter(year=year)
+        if month:
+            qs = qs.filter(month=month)
+        return qs
+
+    def perform_create(self, serializer):
+        # place new task at the end of its month
+        year = serializer.validated_data.get("year")
+        month = serializer.validated_data.get("month")
+        last = (
+            MonthlyTask.objects.filter(user=self.request.user, year=year, month=month)
+            .order_by("-order")
+            .first()
+        )
+        next_order = (last.order + 1) if last else 0
+        serializer.save(user=self.request.user, order=next_order)
+
+    @action(detail=False, methods=["post"])
+    def reorder(self, request):
+        """POST /api/monthly-tasks/reorder/  Body: {"ids": [id1, id2, ...]}
+        Sets order to match the given id sequence (same month)."""
+        ids = request.data.get("ids", [])
+        if not isinstance(ids, list):
+            return Response({"detail": "ids must be a list."}, status=400)
+        tasks = {
+            t.id: t for t in MonthlyTask.objects.filter(
+                user=request.user, id__in=ids
+            )
+        }
+        for index, tid in enumerate(ids):
+            t = tasks.get(tid)
+            if t:
+                t.order = index
+                t.save(update_fields=["order"])
+        return Response({"detail": "reordered", "count": len(ids)})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def yearly_summary(request):
+    """GET /api/summary/yearly/?year=YYYY (default: current year)"""
+    from datetime import date as _date
+    year_str = request.query_params.get("year")
+    try:
+        year = int(year_str) if year_str else _date.today().year
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "Invalid year. Use YYYY."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(services.get_year_summary(year, user=request.user))

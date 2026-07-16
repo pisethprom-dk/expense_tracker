@@ -12,6 +12,7 @@ router.register(r"incomes", views.IncomeRecordViewSet, basename="income-record")
 router.register(r"savings", views.SavingRecordViewSet, basename="saving-record")
 router.register(r"tasks", views.WeeklyTaskViewSet, basename="weekly-task")
 router.register(r"task-templates", views.TaskTemplateViewSet, basename="task-template")
+router.register(r"monthly-tasks", views.MonthlyTaskViewSet, basename="monthly-task")
 
 urlpatterns = [
     # specific summary routes FIRST
@@ -25,6 +26,7 @@ urlpatterns = [
     path("summary/balance/set/", views.set_balance, name="balance-set"),
     path("savings/summary/", views.saving_summary, name="saving-summary"),
     path("tasks/summary/", views.week_summary, name="week-summary"),
+    path("summary/yearly/", views.yearly_summary, name="yearly-summary"),
 
     # router LAST so its <pk> routes don't shadow the above
     path("", include(router.urls)),

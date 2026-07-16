@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.db.models import Sum, Count
 
-from .models import ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask, TaskTemplate
+from .models import ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask, TaskTemplate, MonthlyTask
 
 TWO_DP = Decimal("0.01")
 
@@ -342,3 +342,59 @@ def parse_month(value):
     dt = datetime.strptime(value, "%Y-%m")
     return dt.year, dt.month
 
+
+MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
+               "July", "August", "September", "October", "November", "December"]
+
+
+def get_year_summary(year, user=None) -> dict:
+    """Per-month tasks for the year + end-of-year achievement stats."""
+    qs = MonthlyTask.objects.filter(year=year)
+    if user is not None:
+        qs = qs.filter(user=user)
+    qs = list(qs)
+
+    months = []
+    total = 0
+    success = 0
+    failed = 0
+    for m in range(1, 13):
+        m_tasks = [t for t in qs if t.month == m]
+        m_tasks.sort(key=lambda t: (t.order, t.created_at))
+        m_success = sum(1 for t in m_tasks if t.status == MonthlyTask.STATUS_SUCCESS)
+        m_failed = sum(1 for t in m_tasks if t.status == MonthlyTask.STATUS_FAILED)
+        total += len(m_tasks)
+        success += m_success
+        failed += m_failed
+        months.append({
+            "month": m,
+            "month_name": MONTH_NAMES[m - 1],
+            "task_count": len(m_tasks),
+            "success_count": m_success,
+            "failed_count": m_failed,
+            "tasks": [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "is_done": t.is_done,
+                    "status": t.status,
+                    "note": t.note,
+                    "order": t.order,
+                }
+                for t in m_tasks
+            ],
+        })
+
+    pending = total - success - failed
+    percent = str((Decimal(success) / Decimal(total) * 100).quantize(TWO_DP)) \
+        if total else "0.00"
+
+    return {
+        "year": int(year),
+        "total_tasks": total,
+        "success_tasks": success,
+        "failed_tasks": failed,
+        "pending_tasks": pending,
+        "achievement_percent": percent,
+        "months": months,
+    }

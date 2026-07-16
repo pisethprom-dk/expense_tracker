@@ -149,3 +149,36 @@ class TaskTemplate(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class MonthlyTask(models.Model):
+    """A task planned for a specific month. Year view = 12 months of a year."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="monthly_tasks", null=True, blank=True,
+    )
+    title = models.CharField(max_length=255)
+    year = models.IntegerField()
+    month = models.IntegerField()  # 1-12
+    is_done = models.BooleanField(default=False)
+    STATUS_PENDING = "pending"
+    STATUS_SUCCESS = "success"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SUCCESS, "Success"),
+        (STATUS_FAILED, "Failed"),
+    ]
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING
+    )
+    note = models.CharField(max_length=255, blank=True, default="")
+    order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "monthly_task"
+        ordering = ["year", "month", "order", "created_at"]
+
+    def __str__(self):
+        return f"{self.year}-{self.month:02d} - {'[x]' if self.is_done else '[ ]'} {self.title}"

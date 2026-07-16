@@ -1,7 +1,7 @@
 # v1.11.0
 from rest_framework import serializers
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask, TaskTemplate
+from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask, TaskTemplate, MonthlyTask
 
 
 class ExpenseItemSerializer(serializers.ModelSerializer):
@@ -66,4 +66,11 @@ class TaskTemplateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskTemplate
         fields = ["id", "title", "note", "order", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+
+class MonthlyTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MonthlyTask
+        fields = ["id", "title", "year", "month", "is_done", "status", "note", "order", "created_at"]
         read_only_fields = ["id", "created_at"]

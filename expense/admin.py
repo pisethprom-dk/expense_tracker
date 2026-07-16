@@ -1,7 +1,16 @@
 # v1.11.0
 from django.contrib import admin
 
-from .models import ExpenseItem, ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask, TaskTemplate
+from .models import ( 
+ExpenseItem,
+ExpenseRecord,
+IncomeRecord,
+MonthlyBalance,
+SavingRecord,
+WeeklyTask,
+TaskTemplate,
+MonthlyTask
+)
 
 
 @admin.register(ExpenseItem)
@@ -49,3 +58,9 @@ class WeeklyTaskAdmin(admin.ModelAdmin):
 class TaskTemplateAdmin(admin.ModelAdmin):
     list_display = ["id", "title", "order", "is_active", "user"]
     list_filter = ["is_active"]
+
+@admin.register(MonthlyTask)
+class MonthlyTaskAdmin(admin.ModelAdmin):
+    list_display = ["id", "year", "month", "title", "status", "is_done", "order", "user"]
+    list_filter = ["year", "month", "status", "is_done"]
+    search_fields = ["title"]

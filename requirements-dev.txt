@@ -1,0 +1,15 @@
+# Dependencies for running the app and its test suite.
+#
+# Django is capped below 4.0 to stay compatible with the packages already
+# in this project (django-filer, easy-thumbnails both require Django < 4.0).
+# DRF / cors-headers / psycopg2 are left unpinned so pip keeps whatever
+# versions you already have installed instead of upgrading them.
+
+# --- runtime (already in your environment; listed for a clean CI install) ---
+Django>=3.2,<4.0
+djangorestframework
+django-cors-headers
+psycopg2-binary
+
+# --- testing / coverage (the only genuine additions) ---
+coverage

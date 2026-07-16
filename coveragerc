@@ -1,0 +1,23 @@
+# Coverage settings. Run with:
+#     coverage run manage.py test --settings=expense_tracker.test_settings
+#     coverage report        # console summary
+#     coverage html          # writes htmlcov/index.html
+[run]
+source = expense
+branch = True
+omit =
+    */migrations/*
+    */tests/*
+    expense/apps.py
+    expense/admin.py
+    expense/__init__.py
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 1
+exclude_lines =
+    pragma: no cover
+    def __str__
+    raise NotImplementedError
+    if __name__ == .__main__.:
