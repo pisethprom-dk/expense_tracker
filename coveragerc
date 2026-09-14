@@ -3,7 +3,7 @@
 #     coverage report        # console summary
 #     coverage html          # writes htmlcov/index.html
 [run]
-source = expense
+source = expense, evcharge
 branch = True
 omit =
     */migrations/*
@@ -11,6 +11,9 @@ omit =
     expense/apps.py
     expense/admin.py
     expense/__init__.py
+    evcharge/apps.py
+    evcharge/admin.py
+    evcharge/__init__.py
 
 [report]
 show_missing = True

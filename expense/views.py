@@ -1,4 +1,4 @@
-# v1.11.0
+# v1.12.0
 from datetime import date
 
 from rest_framework import viewsets, status
@@ -57,6 +57,28 @@ class ExpenseRecordViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def _linked_guard(self, instance):
+        """Rows owned by another feature are read-only from this endpoint."""
+        if hasattr(instance, "charging_record"):
+            return Response(
+                {"detail": "This expense is linked to an EV charging session. "
+                           "Edit or delete it via /api/ev/charges/."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return None
+
+    def update(self, request, *args, **kwargs):
+        blocked = self._linked_guard(self.get_object())
+        if blocked is not None:
+            return blocked
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        blocked = self._linked_guard(self.get_object())
+        if blocked is not None:
+            return blocked
+        return super().destroy(request, *args, **kwargs)
 
 
 class IncomeRecordViewSet(viewsets.ModelViewSet):

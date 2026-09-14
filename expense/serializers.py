@@ -1,4 +1,4 @@
-# v1.11.0
+# v1.12.0
 from rest_framework import serializers
 
 from .models import ExpenseItem, ExpenseRecord, IncomeRecord, SavingRecord, WeeklyTask, TaskTemplate, MonthlyTask
@@ -13,14 +13,20 @@ class ExpenseItemSerializer(serializers.ModelSerializer):
 
 class ExpenseRecordSerializer(serializers.ModelSerializer):
     item_name = serializers.CharField(source="item.item_name", read_only=True)
+    is_linked = serializers.SerializerMethodField()
 
     class Meta:
         model = ExpenseRecord
         fields = [
             "id", "item", "item_name", "amount",
-            "expense_date", "remark", "created_at",
+            "expense_date", "remark", "is_linked", "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "is_linked", "created_at"]
+
+    def get_is_linked(self, obj):
+        """True when this row is owned by another feature (e.g. an EV
+        charging session) and must be edited from there instead."""
+        return hasattr(obj, "charging_record")
 
     def validate_amount(self, value):
         if value <= 0:
