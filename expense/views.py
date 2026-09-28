@@ -1,5 +1,6 @@
-# v1.12.0
+# v1.13.0
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
@@ -29,6 +30,14 @@ class ExpenseRecordViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ExpenseRecordSerializer
 
+    @staticmethod
+    def _decimal(raw, label):
+        """Parse a money filter, raising ValueError so list() can return 400."""
+        try:
+            return Decimal(raw)
+        except (InvalidOperation, TypeError):
+            raise ValueError("Invalid %s." % label)
+
     def get_queryset(self):
         qs = (
             ExpenseRecord.objects.select_related("item")
@@ -39,6 +48,8 @@ class ExpenseRecordViewSet(viewsets.ModelViewSet):
         item_id = self.request.query_params.get("item")
         date_from = self.request.query_params.get("from")
         date_to = self.request.query_params.get("to")
+        min_amount = self.request.query_params.get("min_amount")
+        max_amount = self.request.query_params.get("max_amount")
         if expense_date:
             qs = qs.filter(expense_date=expense_date)
         if month:
@@ -51,9 +62,20 @@ class ExpenseRecordViewSet(viewsets.ModelViewSet):
             qs = qs.filter(expense_date__gte=date_from)
         if date_to:
             qs = qs.filter(expense_date__lte=date_to)
+        if min_amount:
+            qs = qs.filter(amount__gte=self._decimal(min_amount, "min_amount"))
+        if max_amount:
+            qs = qs.filter(amount__lte=self._decimal(max_amount, "max_amount"))
         if item_id:
             qs = qs.filter(item_id=item_id)
         return qs
+
+    def list(self, request, *args, **kwargs):
+        try:
+            return super().list(request, *args, **kwargs)
+        except ValueError as exc:
+            return Response({"detail": str(exc)},
+                            status=status.HTTP_400_BAD_REQUEST)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -90,14 +112,23 @@ class IncomeRecordViewSet(viewsets.ModelViewSet):
         qs = IncomeRecord.objects.filter(user=self.request.user)
         income_date = self.request.query_params.get("date")
         month = self.request.query_params.get("month")
+        year = self.request.query_params.get("year")
+        date_from = self.request.query_params.get("from")
+        date_to = self.request.query_params.get("to")
         if income_date:
             qs = qs.filter(income_date=income_date)
         if month:
             try:
-                year, mon = services.parse_month(month)
-                qs = qs.filter(income_date__year=year, income_date__month=mon)
+                y, mon = services.parse_month(month)
+                qs = qs.filter(income_date__year=y, income_date__month=mon)
             except ValueError:
                 pass
+        if year:
+            qs = qs.filter(income_date__year=int(year))
+        if date_from:
+            qs = qs.filter(income_date__gte=services.parse_date(date_from))
+        if date_to:
+            qs = qs.filter(income_date__lte=services.parse_date(date_to))
         return qs
 
     def perform_create(self, serializer):
@@ -348,6 +379,21 @@ def saving_summary(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response(services.get_saving_summary(year, user=request.user))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def income_summary(request):
+    """GET /api/incomes/summary/?year=YYYY (default: current year)"""
+    year_str = request.query_params.get("year")
+    try:
+        year = int(year_str) if year_str else date.today().year
+    except (TypeError, ValueError):
+        return Response(
+            {"detail": "Invalid year. Use YYYY."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return Response(services.get_income_summary(year, user=request.user))
 
 
 @api_view(["GET"])

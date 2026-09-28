@@ -1,4 +1,4 @@
-# v1.0.0
+# v1.0.1
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
@@ -114,7 +114,8 @@ def delete_charging_record(record):
 def _vehicle_breakdown(qs):
     """Per-vehicle totals for an already-filtered charging-record queryset."""
     rows = (
-        qs.values("vehicle__id", "vehicle__brand", "vehicle__plate_number")
+        qs.order_by()
+        .values("vehicle__id", "vehicle__brand", "vehicle__plate_number")
         .annotate(
             session_count=Count("id"),
             kwh_total=Sum("total_kwh"),
@@ -163,7 +164,10 @@ def get_yearly_ev_summary(year, user) -> dict:
 
     by_month = {
         row["m"]: row
-        for row in qs.annotate(m=ExtractMonth("charge_date"))
+        # .order_by() clears Meta.ordering, which would otherwise be pulled
+        # into the GROUP BY and split a month into one row per session.
+        for row in qs.order_by()
+        .annotate(m=ExtractMonth("charge_date"))
         .values("m")
         .annotate(
             session_count=Count("id"),

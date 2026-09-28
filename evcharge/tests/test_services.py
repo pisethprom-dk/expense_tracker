@@ -1,4 +1,4 @@
-# v1.0.0
+# v1.0.1
 from decimal import Decimal
 
 from django.test import TestCase
@@ -153,6 +153,18 @@ class ReportTests(TestCase):
         self.assertEqual(data["session_count"], 2)
         self.assertEqual(data["total_price"], "22.50")
         self.assertEqual([m["month_num"] for m in data["months"]], [3, 4])
+
+    def test_two_sessions_in_one_month_collapse_to_one_row(self):
+        # regression: Meta.ordering leaking into GROUP BY split these apart
+        from datetime import date
+        make_charge(self.user, self.tesla, on=date(2026, 3, 5))
+        make_charge(self.user, self.tesla, on=date(2026, 3, 20))
+        data = services.get_yearly_ev_summary(2026, user=self.user)
+        self.assertEqual(len(data["months"]), 1)
+        self.assertEqual(data["months"][0]["session_count"], 2)
+        self.assertEqual(data["months"][0]["total_price"], "22.50")
+        self.assertEqual(len(data["vehicles"]), 1)
+        self.assertEqual(data["vehicles"][0]["session_count"], 2)
 
     def test_reports_are_scoped_to_the_user(self):
         other_vehicle = make_vehicle(self.other, brand="Nissan")

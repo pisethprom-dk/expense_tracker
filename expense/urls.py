@@ -1,4 +1,4 @@
-# v1.11.0
+# v1.12.0
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
@@ -25,6 +25,7 @@ urlpatterns = [
     path("summary/balance/", views.balance_overview, name="balance-overview"),
     path("summary/balance/set/", views.set_balance, name="balance-set"),
     path("savings/summary/", views.saving_summary, name="saving-summary"),
+    path("incomes/summary/", views.income_summary, name="income-summary"),
     path("tasks/summary/", views.week_summary, name="week-summary"),
     path("summary/yearly/", views.yearly_summary, name="yearly-summary"),
 

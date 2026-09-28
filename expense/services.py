@@ -1,8 +1,9 @@
-# v1.11.0
+# v1.12.0
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Sum, Count
+from django.db.models.functions import ExtractMonth
 
 from .models import ExpenseRecord, IncomeRecord, MonthlyBalance, SavingRecord, WeeklyTask, TaskTemplate, MonthlyTask
 
@@ -237,6 +238,61 @@ def get_saving_summary(year, user=None) -> dict:
         "year": str(year),
         "year_total": money(year_total),
         "months": months,
+    }
+
+
+def get_income_summary(year, user=None) -> dict:
+    """Per-month income totals for a year, plus a breakdown by source.
+
+    Mirrors get_saving_summary. Months are aggregated in a single query
+    rather than one query per month.
+    """
+    qs = IncomeRecord.objects.filter(income_date__year=year)
+    if user is not None:
+        qs = qs.filter(user=user)
+
+    by_month = {
+        row["m"]: row
+        # .order_by() clears Meta.ordering, which would otherwise be pulled
+        # into the GROUP BY and break the per-month grouping.
+        for row in qs.order_by()
+        .annotate(m=ExtractMonth("income_date"))
+        .values("m")
+        .annotate(total_amount=Sum("amount"), record_count=Count("id"))
+    }
+
+    months = []
+    for m in range(1, 13):
+        row = by_month.get(m)
+        if not row:
+            continue
+        months.append({
+            "month": "%04d-%02d" % (year, m),
+            "month_num": m,
+            "total_amount": money(row["total_amount"]),
+            "record_count": row["record_count"],
+        })
+
+    year_total = qs.aggregate(t=Sum("amount"))["t"] or Decimal("0")
+
+    sources = [
+        {
+            "income_source": row["income_source"],
+            "total_amount": money(row["total_amount"]),
+            "record_count": row["record_count"],
+            "percent_of_total": _pct(row["total_amount"], year_total),
+        }
+        for row in qs.order_by()
+        .values("income_source")
+        .annotate(total_amount=Sum("amount"), record_count=Count("id"))
+        .order_by("-total_amount")
+    ]
+
+    return {
+        "year": str(year),
+        "year_total": money(year_total),
+        "months": months,
+        "sources": sources,
     }
 
 
