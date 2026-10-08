@@ -56,8 +56,9 @@ class SavingRecordSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
     def validate_amount(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Amount must be greater than 0.")
+        # Positive = deposit, negative = withdrawal.
+        if value == 0:
+            raise serializers.ValidationError("Amount must not be 0.")
         return value
 
 

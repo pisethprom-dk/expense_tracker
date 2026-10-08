@@ -80,7 +80,7 @@ class MonthlyBalance(models.Model):
 
 
 class SavingRecord(models.Model):
-    """A money-saving entry (money set aside)."""
+    """A money-saving entry: positive = deposit, negative = withdrawal."""
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
         related_name="saving_records", null=True, blank=True,

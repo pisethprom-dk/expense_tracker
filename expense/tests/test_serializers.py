@@ -48,12 +48,19 @@ class AmountValidationTests(TestCase):
         self.assertFalse(s.is_valid())
         self.assertIn("amount", s.errors)
 
-    def test_saving_amount_must_be_positive(self):
+    def test_saving_amount_zero_rejected(self):
         s = SavingRecordSerializer(data={
             "amount": "0", "saving_date": "2026-01-01",
         })
         self.assertFalse(s.is_valid())
         self.assertIn("amount", s.errors)
+
+    def test_saving_amount_negative_ok(self):
+        # negative saving = withdrawal
+        s = SavingRecordSerializer(data={
+            "amount": "-20.00", "saving_date": "2026-01-01",
+        })
+        self.assertTrue(s.is_valid(), s.errors)
 
 
 class ConstraintTests(TestCase):
