@@ -1,0 +1,38 @@
+# Expense Tracker API: Django + gunicorn ("web") and PostgreSQL ("db").
+#   cp .env.example .env    # then set real values
+#   docker compose up --build
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    # Supplies POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD. The image uses
+    # them only when it initialises an empty pgdata volume.
+    env_file: .env
+    # The volume name carries the Postgres major version: a data directory only
+    # starts under the major version that created it. Upgrading the image means
+    # a new volume plus a dump/restore.
+    volumes:
+      - pgdata17:/var/lib/postgresql/data
+    # No published port: only the web service reaches Postgres, at host "db".
+    # Use `docker compose exec db psql -U <user> -d <db>` for a SQL shell.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata17:

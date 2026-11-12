@@ -1,0 +1,10 @@
+# Development override: mounts the source and runs runserver with DEBUG on,
+# so code edits reload without rebuilding the image.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  web:
+    command: sh -c "python manage.py migrate --noinput && exec python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_DEBUG: "True"
+    volumes:
+      - .:/app

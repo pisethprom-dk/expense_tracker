@@ -1,0 +1,13 @@
+# Pinned runtime dependencies for the Docker image.
+#
+# Versions stay on the release lines of the host install (Django 3.2.11,
+# DRF 3.11.1, django-cors-headers 3.5.0), moved to their latest patch release.
+# requirements-dev.txt stays unpinned for host installs.
+Django==3.2.25
+djangorestframework==3.11.2
+django-cors-headers==3.5.0
+psycopg2-binary==2.9.10
+
+# WSGI server and static file serving inside the container.
+gunicorn==23.0.0
+whitenoise==6.7.0  # last release that supports Django 3.2

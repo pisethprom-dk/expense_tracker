@@ -1,0 +1,13 @@
+.git
+.gitignore
+.dockerignore
+.env
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+.coverage
+htmlcov
+staticfiles
+Dockerfile
+docker-compose*.yml
+**/*.md

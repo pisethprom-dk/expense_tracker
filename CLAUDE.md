@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Django 3.2 + Django REST Framework JSON API (no templates/UI) for a personal expense tracker. The Angular 17 frontend lives in a sibling directory, `../expense-web`, and consumes this API. That is why `settings.py` whitelists CORS for `localhost:4200`. This project runs directly on the host against a local Postgres, not in Docker. That is why the DB settings are hardcoded. `../expense_tracker-docker` is a separate, older copy that is not used. It has no `evcharge` app, and edits made here do not reach it.
+Django 3.2 + Django REST Framework JSON API (no templates/UI) for a personal expense tracker. The Angular 17 frontend lives in a sibling directory, `../expense-web`, and consumes this API. That is why `settings.py` whitelists CORS for `localhost:4200`. The project runs in Docker (`docker-compose.yml`: `web` on gunicorn, `db` on Postgres 17) or directly on the host against a local Postgres. `settings.py` reads `DJANGO_*` and `POSTGRES_*` env vars. Their defaults are the host-run values, so a host run needs no env. `../expense_tracker-docker` is a separate, older copy that is not used. It has no `evcharge` app, and edits made here do not reach it.
 
 ## Commands
 
@@ -16,7 +16,7 @@ python manage.py test expense.tests.test_services --settings=expense_tracker.tes
 python manage.py test expense.tests.test_serializers.AmountValidationTests.test_saving_amount_zero_rejected --settings=expense_tracker.test_settings
 ```
 
-Without `--settings`, Django uses the main `settings.py`. Its Postgres credentials are hardcoded: `expense_tracker_db` on `127.0.0.1:5432`. So `runserver`, `migrate` and plain `manage.py test` all require that local Postgres.
+Without `--settings`, Django uses the main `settings.py`. Outside Docker its Postgres connection defaults to `expense_tracker_db` on `127.0.0.1:5432`. So host `runserver`, `migrate` and plain `manage.py test` all require that local Postgres.
 
 ```bash
 python manage.py runserver
@@ -31,7 +31,22 @@ coverage run --rcfile=coveragerc manage.py test --settings=expense_tracker.test_
 coverage report --rcfile=coveragerc
 ```
 
-No linter or formatter is configured. Django must stay `<4.0` (see `requirements-dev.txt`).
+No linter or formatter is configured. Django must stay `<4.0` (see `requirements-dev.txt` and `requirements.txt`).
+
+### Docker
+
+```bash
+docker compose up -d --build                                              # gunicorn; migrates on start
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build # runserver + source bind mount, DEBUG on
+docker compose run --rm --no-deps web python manage.py test --settings=expense_tracker.test_settings
+```
+
+- `.env` (gitignored, copied from `.env.example`) feeds both services. The `db` service publishes no port; `web` reaches it at host `db`.
+- Run `makemigrations` only in dev mode, where it writes to the mounted source. In the plain image `/app` is root-owned and read-only for the `app` user.
+- `requirements.txt` pins versions for the image. `requirements-dev.txt` stays unpinned for host installs. Add a new runtime dependency to both.
+- WhiteNoise is installed only in the image. `settings.py` enables its middleware only when it imports, so host runs work without it.
+- Python stays on 3.10, the newest Django 3.2 supports.
+- The Postgres volume is `pgdata17`. Its name tracks the Postgres major version, because a data directory only starts under the major version that created it.
 
 ## Architecture
 

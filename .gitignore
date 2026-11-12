@@ -1,0 +1,6 @@
+.env
+*.sql
+__pycache__/
+*.pyc
+staticfiles/
+htmlcov/

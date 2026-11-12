@@ -10,22 +10,33 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Settings that read os.environ default to the values for a plain host run
+# (runserver against the local Postgres). Docker sets them from .env.
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z#=399mz2qpki+83s4n!bak30fv&n!c(c(yhb$c+kkhs27m7c*'
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-z#=399mz2qpki+83s4n!bak30fv&n!c(c(yhb$c+kkhs27m7c*",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -100,11 +111,11 @@ WSGI_APPLICATION = 'expense_tracker.wsgi.application'
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "expense_tracker_db",
-        "USER": "piseth",
-        "PASSWORD": "1234567890",
-        "HOST": "127.0.0.1",
-        "PORT": "5432",
+        "NAME": os.environ.get("POSTGRES_DB", "expense_tracker_db"),
+        "USER": os.environ.get("POSTGRES_USER", "piseth"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "1234567890"),
+        "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }
 # Password validation
@@ -144,7 +155,24 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# The image collects static files outside /app so that the dev compose
+# file's source bind mount does not hide them.
+STATIC_ROOT = os.environ.get("DJANGO_STATIC_ROOT", BASE_DIR / 'staticfiles')
+
+# WhiteNoise serves the collected static files (the admin's CSS/JS) under
+# gunicorn. Only the Docker image installs it (requirements.txt), so host runs
+# and tests without it keep working.
+try:
+    import whitenoise  # noqa: F401
+except ImportError:
+    pass
+else:
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
 
