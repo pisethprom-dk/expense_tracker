@@ -1,6 +1,6 @@
 # Expense Tracker API
 
-Django 3.2 + Django REST Framework JSON API for the expense tracker. The Angular frontend (`../expense-web`) calls it at `http://localhost:8000/api/`.
+Django 3.2 + Django REST Framework JSON API for the expense tracker. The Angular frontend (`../expense-web`) consumes it.
 
 ## Run with Docker
 
@@ -12,6 +12,7 @@ docker compose exec web python manage.py createsuperuser
 
 - API: http://localhost:8000/api/
 - Admin: http://localhost:8000/admin/
+- The host port is `WEB_PORT` in `.env` (default 8000). The container always listens on 8000.
 - Logs: `docker compose logs -f web`
 - Stop: `docker compose down`. This keeps the data. `docker compose down -v` also **deletes the database**.
 
@@ -27,6 +28,16 @@ docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
 The `POSTGRES_*` values in `.env` only take effect the first time the database starts on an empty volume. Changing them later does not change the existing database.
+
+### Deploying to a server
+
+On the EC2 server, port 8000 is taken by another container, so its `.env` sets `WEB_PORT=8003`. Before running `docker compose up` on any server:
+
+- Set `WEB_PORT` in `.env` first. Otherwise compose falls back to 8000.
+- List the host names or IPs that clients use in `DJANGO_ALLOWED_HOSTS`. Otherwise Django answers 400.
+- Open `WEB_PORT` in the server's firewall or security group.
+
+Check it with `curl -i http://localhost:<WEB_PORT>/api/records/` on the server. A `401` means the API is up and asking for a token.
 
 ### Development mode
 
@@ -90,3 +101,4 @@ python manage.py test --settings=expense_tracker.test_settings
 | `POSTGRES_HOST` | `127.0.0.1` | compose sets this to `db` |
 | `POSTGRES_PORT` | `5432` | database port |
 | `DJANGO_STATIC_ROOT` | `./staticfiles` | the image sets this to `/srv/static` |
+| `WEB_PORT` | `8000` | Docker only: host port for the API (8003 on EC2) |

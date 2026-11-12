@@ -42,6 +42,7 @@ docker compose run --rm --no-deps web python manage.py test --settings=expense_t
 ```
 
 - `.env` (gitignored, copied from `.env.example`) feeds both services. The `db` service publishes no port; `web` reaches it at host `db`.
+- The API's host port is `WEB_PORT` in `.env` (default 8000). The EC2 server uses 8003 because another container holds 8000. Change only `WEB_PORT`, never the container port: the gunicorn bind, `EXPOSE`, and the dev `runserver` all stay on 8000.
 - Run `makemigrations` only in dev mode, where it writes to the mounted source. In the plain image `/app` is root-owned and read-only for the `app` user.
 - `requirements.txt` pins versions for the image. `requirements-dev.txt` stays unpinned for host installs. Add a new runtime dependency to both.
 - WhiteNoise is installed only in the image. `settings.py` enables its middleware only when it imports, so host runs work without it.

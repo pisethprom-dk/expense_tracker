@@ -31,8 +31,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Host port from WEB_PORT in .env (default 8000; the EC2 server uses 8003).
+    # The container always listens on 8000.
     ports:
-      - "8003:8000"
+      - "${WEB_PORT:-8000}:8000"
 
 volumes:
   pgdata17:
