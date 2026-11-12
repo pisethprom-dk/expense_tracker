@@ -24,7 +24,7 @@ RUN chmod -R a+rX /app \
  && useradd --create-home --uid 1000 app
 USER app
 
-EXPOSE 8003
+EXPOSE 8000
 
 # Apply pending migrations, then hand PID 1 to gunicorn.
 CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn expense_tracker.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile -"]
