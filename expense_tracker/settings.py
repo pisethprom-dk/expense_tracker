@@ -188,3 +188,5 @@ CORS_ORIGIN_WHITELIST = (
 # Only needed if your Angular app sends cookies (session auth, CSRF)
 CORS_ALLOW_CREDENTIALS = True
 
+CSRF_TRUSTED_ORIGINS = ["https://gbssite.space", "https://www.gbssite.space"]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
